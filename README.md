@@ -1,6 +1,8 @@
-# UNIXPermissionsExt
+## UNIXPermissionsExt
 
 [![BUILD](https://github.com/stevelauc/UNIXPermissionsExt/workflows/Rust/badge.svg)](https://github.com/stevelauc/UNIXPermissionsExt/actions/workflows/build.yml)
+[![crates.io](https://img.shields.io/crates/v/unix_permissions_ext.svg)](https://crates.io/crates/unix_permissions_ext)
+[![docs.rs](https://docs.rs/unix_permissions_ext/badge.svg)](https://docs.rs/unix_permissions_ext)
 
 A trivial trait bringing missing functions that are not exposed by
 [`std::os::unix::fs::PermissionsExt`](https://doc.rust-lang.org/std/os/unix/fs/trait.PermissionsExt.html)
@@ -25,9 +27,13 @@ pub trait UNIXPermissionsExt {
     fn writable_by_other(&self) -> bool;
     fn executable_by_other(&self) -> bool;
 }
+
+impl UNIXPermissionsExt for Permissions {
+   ...
+}
 ```
 
-# How to use
+## Usage
 
 1. Add it to your dependency:
 
@@ -47,3 +53,20 @@ pub trait UNIXPermissionsExt {
    
    assert!(permission.set_uid());
    ``` 
+
+## Contributing
+
+Contributions of all forms are welcome, feel free to file an issue or make a pull request!
+
+#### Test before your commit 
+
+1. Pass the tests
+
+   ```shell
+   $ cargo test
+   ``` 
+2. Format your code
+
+   ```shell
+   $ cargo fmt
+   ```

@@ -1,0 +1,10 @@
+[package]
+name = "unix_permissions_ext"
+authors = ["SteveLauC <stevelauc@outlook.com>"]
+description = "A trivial trait bringing missing functions that are not exposed by PermissionsExt to Permissions on UNIX platforms."
+readme = "README.md"
+license = "GPLv2"
+repository = "https://github.com/SteveLauC/UNIXPermissionsExt"
+categories = ["Unix APIs", "Filesystem"]
+version = "0.1.0"
+edition = "2021"

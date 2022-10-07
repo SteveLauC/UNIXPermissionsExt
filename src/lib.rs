@@ -1,3 +1,8 @@
+//! UNIXPermissionsExt
+//!
+//! A trivial trait bringing missing functions that are not exposed by
+//! PermissionsExt to Permissions on UNIX platforms.
+
 mod constants;
 
 use constants::*;
@@ -28,12 +33,17 @@ pub trait UNIXPermissionsExt {
     /// Is this file executable by group?
     fn executable_by_group(&self) -> bool;
 
-    /// Is this file readable by others
+    /// Is this file readable by others?
     fn readable_by_other(&self) -> bool;
-    /// Is this file writable by others
+    /// Is this file writable by others?
     fn writable_by_other(&self) -> bool;
-    /// Is this file executable by others
+    /// Is this file executable by others?
     fn executable_by_other(&self) -> bool;
+
+    #[cfg(feature = "to-string")]
+    /// Convert Permissions into a `String`, just like the one printed by
+    /// `ls(1)`.
+    fn to_string(&self) -> String;
 }
 
 impl UNIXPermissionsExt for std::fs::Permissions {
@@ -89,6 +99,46 @@ impl UNIXPermissionsExt for std::fs::Permissions {
     fn executable_by_other(&self) -> bool {
         self.mode() & S_IXOTH > 0
     }
+
+    #[cfg(feature = "to-string")]
+    fn to_string(&self) -> String {
+        format!(
+            "{}{}{}{}{}{}{}{}{}",
+            if self.readable_by_owner() { 'r' } else { '-' },
+            if self.writable_by_owner() { 'w' } else { '-' },
+            if self.executable_by_owner() && self.set_uid() {
+                's'
+            } else if self.executable_by_owner() {
+                'x'
+            } else if self.set_uid() {
+                'S'
+            } else {
+                '-'
+            },
+            if self.readable_by_group() { 'r' } else { '-' },
+            if self.writable_by_group() { 'w' } else { '-' },
+            if self.executable_by_group() && self.set_gid() {
+                's'
+            } else if self.executable_by_group() {
+                'x'
+            } else if self.set_gid() {
+                'S'
+            } else {
+                '-'
+            },
+            if self.readable_by_other() { 'r' } else { '-' },
+            if self.writable_by_other() { 'w' } else { '-' },
+            if self.executable_by_other() && self.sticky_bit() {
+                't'
+            } else if self.executable_by_other() {
+                'x'
+            } else if self.sticky_bit() {
+                'T'
+            } else {
+                '-'
+            },
+        )
+    }
 }
 
 #[cfg(test)]
@@ -104,44 +154,40 @@ mod test {
     #[test]
     // used for testing `readable_by_*()` and `executable_by_*()`
     fn test_ls() {
-        if let Ok(output) =
-            Command::new("bash").args(["-c", "\"which ls\""]).output()
-        {
-            if output.stderr.is_empty() {
-                let ls_path =
-                    <OsStr as OsStrExt>::from_bytes(&output.stdout[..]);
+        if let Ok(output) = Command::new("which").arg("ls").output() {
+            assert!(output.stderr.is_empty());
+            assert!(!output.stdout.is_empty());
+            let ls_path = <OsStr as OsStrExt>::from_bytes(
+                &output.stdout[..output.stdout.len() - 1],
+            );
 
-                let metadata =
-                    metadata(ls_path).expect("can not get ls metadata");
-                let permission = metadata.permissions();
+            let metadata = metadata(ls_path).expect("can not get ls metadata");
+            let permission = metadata.permissions();
 
-                assert!(permission.readable_by_owner());
-                assert!(permission.readable_by_group());
-                assert!(permission.readable_by_other());
+            assert!(permission.readable_by_owner());
+            assert!(permission.readable_by_group());
+            assert!(permission.readable_by_other());
 
-                assert!(permission.executable_by_owner());
-                assert!(permission.executable_by_group());
-                assert!(permission.executable_by_other());
-            }
+            assert!(permission.executable_by_owner());
+            assert!(permission.executable_by_group());
+            assert!(permission.executable_by_other());
         }
     }
 
     #[test]
     // test `set_uid()`
     fn test_su() {
-        if let Ok(output) =
-            Command::new("bash").args(["-c", "\"which su\""]).output()
-        {
-            if output.stderr.is_empty() {
-                let su_path =
-                    <OsStr as OsStrExt>::from_bytes(&output.stdout[..]);
+        if let Ok(output) = Command::new("which").arg("su").output() {
+            assert!(output.stderr.is_empty());
+            assert!(!output.stdout.is_empty());
+            let su_path = <OsStr as OsStrExt>::from_bytes(
+                &output.stdout[..output.stdout.len() - 1],
+            );
 
-                let metadata =
-                    metadata(su_path).expect("can not get su metadata");
-                let permission = metadata.permissions();
+            let metadata = metadata(su_path).expect("can not get su metadata");
+            let permission = metadata.permissions();
 
-                assert!(permission.set_uid());
-            }
+            assert!(permission.set_uid());
         }
     }
 
@@ -183,5 +229,62 @@ mod test {
         assert!(permission.sticky_bit());
 
         remove_file("/tmp/iugxacxgx").unwrap();
+    }
+
+    #[test]
+    // test `to_string()`
+    fn test_to_string() {
+        use std::fs::Permissions;
+
+        let tmp_file = File::create("/tmp/ugxacxgx")
+            .expect("can not create temporary file");
+
+        Command::new("chmod")
+            .args(["777", "/tmp/ugxacxgx"])
+            .status()
+            .expect("can not execute chmod");
+        let mut metadata;
+        let mut permission;
+
+        Command::new("chmod")
+            .args(["+s", "/tmp/ugxacxgx"])
+            .status()
+            .expect("can not execute chmod");
+        metadata = tmp_file
+            .metadata()
+            .expect("can not get temporary file metadata");
+        permission = metadata.permissions();
+        assert_eq!(
+            <Permissions as UNIXPermissionsExt>::to_string(&permission),
+            "rwsrwsrwx"
+        );
+
+        Command::new("chmod")
+            .args(["o+t", "/tmp/ugxacxgx"])
+            .status()
+            .expect("can not execute chmod");
+        metadata = tmp_file
+            .metadata()
+            .expect("can not get temporary file metadata");
+        permission = metadata.permissions();
+        assert_eq!(
+            <Permissions as UNIXPermissionsExt>::to_string(&permission),
+            "rwsrwsrwt"
+        );
+
+        Command::new("chmod")
+            .args(["-x", "/tmp/ugxacxgx"])
+            .status()
+            .expect("can not execute chmod");
+        metadata = tmp_file
+            .metadata()
+            .expect("can not get temporary file metadata");
+        permission = metadata.permissions();
+        assert_eq!(
+            <Permissions as UNIXPermissionsExt>::to_string(&permission),
+            "rwSrwSrwT"
+        );
+
+        remove_file("/tmp/ugxacxgx").unwrap();
     }
 }

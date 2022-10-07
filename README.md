@@ -26,10 +26,13 @@ pub trait UNIXPermissionsExt {
     fn readable_by_other(&self) -> bool;
     fn writable_by_other(&self) -> bool;
     fn executable_by_other(&self) -> bool;
+  
+    #[cfg(feature = "to-string")]
+    fn to_string() -> String;
 }
 
 impl UNIXPermissionsExt for Permissions {
-   ...
+    ...
 }
 ```
 
@@ -45,25 +48,40 @@ impl UNIXPermissionsExt for Permissions {
 2. Import this trait and use it just like you are using the standard library!
 
    ```rust
-   use std::fs;
+   use std::fs::{metadata, Permissions};
    use unix_permissions_ext::UNIXPermissionsExt;
    
-   let metadata = fs::metadata("/usr/bin/passwd").expect("can not fetch metadata");
+   let metadata = metadata("/usr/bin/passwd").expect("can not fetch metadata");
    let permission = metadata.permissions();
    
    assert!(permission.set_uid());
    ``` 
 
+3. If you have feature `to-string` enabled, you can also use `to_string()` to convert
+   `Permissions` into a string, just like the one printed by `ls(1)`
+   
+   ```toml
+   # Cargo.toml
+   
+   [dependencies]
+   unix_permissions_ext = { version = "x.x.x", features = ["to-string"] }
+   ```
+
+   ```rust
+   let permission_str = <Permissions as UNIXPermissionsExt>::to_string(&permission);
+   println!("{}", permission_str);
+   ```
+
 ## Contributing
 
 Contributions of all forms are welcome, feel free to file an issue or make a pull request!
 
-#### Test before your commit 
+#### Test before your commit
 
 1. Pass the tests
 
    ```shell
-   $ cargo test
+   $ cargo test --features "to-string"
    ``` 
 2. Format your code
 

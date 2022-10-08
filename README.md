@@ -14,21 +14,16 @@ pub trait UNIXPermissionsExt {
     fn set_uid(&self) -> bool;
     fn set_gid(&self) -> bool;
     fn sticky_bit(&self) -> bool;
-
     fn readable_by_owner(&self) -> bool;
     fn writable_by_owner(&self) -> bool;
     fn executable_by_owner(&self) -> bool;
-
     fn readable_by_group(&self) -> bool;
     fn writable_by_group(&self) -> bool;
     fn executable_by_group(&self) -> bool;
-
     fn readable_by_other(&self) -> bool;
     fn writable_by_other(&self) -> bool;
     fn executable_by_other(&self) -> bool;
-  
-    #[cfg(feature = "to-string")]
-    fn to_string() -> String;
+    fn stringify(&self) -> String;
 }
 
 impl UNIXPermissionsExt for Permissions {
@@ -48,29 +43,21 @@ impl UNIXPermissionsExt for Permissions {
 2. Import this trait and use it just like you are using the standard library!
 
    ```rust
-   use std::fs::{metadata, Permissions};
+   use std::fs::metadata;
    use unix_permissions_ext::UNIXPermissionsExt;
    
    let metadata = metadata("/usr/bin/passwd").expect("can not fetch metadata");
    let permission = metadata.permissions();
    
    assert!(permission.set_uid());
+   println!("Permission: {}", permission.stringify());
    ``` 
 
-3. If you have feature `to-string` enabled, you can also use `to_string()` to convert
-   `Permissions` into a string, just like the one printed by `ls(1)`
+3. To use these functions directly with the `mode_t` type, consider importing `raw_fn` module:
    
-   ```toml
-   # Cargo.toml
-   
-   [dependencies]
-   unix_permissions_ext = { version = "x.x.x", features = ["to-string"] }
-   ```
-
    ```rust
-   let permission_str = <Permissions as UNIXPermissionsExt>::to_string(&permission);
-   println!("{}", permission_str);
-   ```
+   use unix_permissions_ext::raw_fn::*;
+   ```  
 
 ## Contributing
 
@@ -81,7 +68,7 @@ Contributions of all forms are welcome, feel free to file an issue or make a pul
 1. Pass the tests
 
    ```shell
-   $ cargo test --features "to-string"
+   $ cargo test
    ``` 
 2. Format your code
 

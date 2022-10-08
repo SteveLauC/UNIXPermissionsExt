@@ -4,8 +4,9 @@
 //! PermissionsExt to Permissions on UNIX platforms.
 
 mod constants;
+pub mod raw_fn;
 
-use constants::*;
+use raw_fn::*;
 use std::os::unix::fs::PermissionsExt;
 
 /// Missing functions that are not exposed by
@@ -40,104 +41,67 @@ pub trait UNIXPermissionsExt {
     /// Is this file executable by others?
     fn executable_by_other(&self) -> bool;
 
-    #[cfg(feature = "to-string")]
     /// Convert Permissions into a `String`, just like the one printed by
     /// `ls(1)`.
-    fn to_string(&self) -> String;
+    fn stringify(&self) -> String;
 }
 
 impl UNIXPermissionsExt for std::fs::Permissions {
     #[inline]
     fn set_uid(&self) -> bool {
-        self.mode() & S_ISUID > 0
+        set_uid(self.mode())
     }
 
     #[inline]
     fn set_gid(&self) -> bool {
-        self.mode() & S_ISGID > 0
+        set_gid(self.mode())
     }
     #[inline]
     fn sticky_bit(&self) -> bool {
-        self.mode() & S_ISVTX > 0
+        sticky_bit(self.mode())
     }
 
     #[inline]
     fn readable_by_owner(&self) -> bool {
-        self.mode() & S_IRUSR > 0
+        readable_by_owner(self.mode())
     }
     #[inline]
     fn writable_by_owner(&self) -> bool {
-        self.mode() & S_IWUSR > 0
+        writable_by_owner(self.mode())
     }
     #[inline]
     fn executable_by_owner(&self) -> bool {
-        self.mode() & S_IXUSR > 0
+        executable_by_owner(self.mode())
     }
 
     #[inline]
     fn readable_by_group(&self) -> bool {
-        self.mode() & S_IRGRP > 0
+        readable_by_group(self.mode())
     }
     #[inline]
     fn writable_by_group(&self) -> bool {
-        self.mode() & S_IWGRP > 0
+        writable_by_group(self.mode())
     }
     #[inline]
     fn executable_by_group(&self) -> bool {
-        self.mode() & S_IXGRP > 0
+        executable_by_owner(self.mode())
     }
 
     #[inline]
     fn readable_by_other(&self) -> bool {
-        self.mode() & S_IROTH > 0
+        readable_by_other(self.mode())
     }
     #[inline]
     fn writable_by_other(&self) -> bool {
-        self.mode() & S_IWOTH > 0
+        writable_by_other(self.mode())
     }
     #[inline]
     fn executable_by_other(&self) -> bool {
-        self.mode() & S_IXOTH > 0
+        executable_by_other(self.mode())
     }
 
-    #[cfg(feature = "to-string")]
-    fn to_string(&self) -> String {
-        format!(
-            "{}{}{}{}{}{}{}{}{}",
-            if self.readable_by_owner() { 'r' } else { '-' },
-            if self.writable_by_owner() { 'w' } else { '-' },
-            if self.executable_by_owner() && self.set_uid() {
-                's'
-            } else if self.executable_by_owner() {
-                'x'
-            } else if self.set_uid() {
-                'S'
-            } else {
-                '-'
-            },
-            if self.readable_by_group() { 'r' } else { '-' },
-            if self.writable_by_group() { 'w' } else { '-' },
-            if self.executable_by_group() && self.set_gid() {
-                's'
-            } else if self.executable_by_group() {
-                'x'
-            } else if self.set_gid() {
-                'S'
-            } else {
-                '-'
-            },
-            if self.readable_by_other() { 'r' } else { '-' },
-            if self.writable_by_other() { 'w' } else { '-' },
-            if self.executable_by_other() && self.sticky_bit() {
-                't'
-            } else if self.executable_by_other() {
-                'x'
-            } else if self.sticky_bit() {
-                'T'
-            } else {
-                '-'
-            },
-        )
+    fn stringify(&self) -> String {
+        stringify(self.mode())
     }
 }
 
@@ -234,8 +198,6 @@ mod test {
     #[test]
     // test `to_string()`
     fn test_to_string() {
-        use std::fs::Permissions;
-
         let tmp_file = File::create("/tmp/ugxacxgx")
             .expect("can not create temporary file");
 
@@ -254,10 +216,7 @@ mod test {
             .metadata()
             .expect("can not get temporary file metadata");
         permission = metadata.permissions();
-        assert_eq!(
-            <Permissions as UNIXPermissionsExt>::to_string(&permission),
-            "rwsrwsrwx"
-        );
+        assert_eq!(permission.stringify(), "rwsrwsrwx");
 
         Command::new("chmod")
             .args(["o+t", "/tmp/ugxacxgx"])
@@ -267,10 +226,7 @@ mod test {
             .metadata()
             .expect("can not get temporary file metadata");
         permission = metadata.permissions();
-        assert_eq!(
-            <Permissions as UNIXPermissionsExt>::to_string(&permission),
-            "rwsrwsrwt"
-        );
+        assert_eq!(permission.stringify(), "rwsrwsrwt");
 
         Command::new("chmod")
             .args(["-x", "/tmp/ugxacxgx"])
@@ -280,10 +236,7 @@ mod test {
             .metadata()
             .expect("can not get temporary file metadata");
         permission = metadata.permissions();
-        assert_eq!(
-            <Permissions as UNIXPermissionsExt>::to_string(&permission),
-            "rwSrwSrwT"
-        );
+        assert_eq!(permission.stringify(), "rwSrwSrwT");
 
         remove_file("/tmp/ugxacxgx").unwrap();
     }
